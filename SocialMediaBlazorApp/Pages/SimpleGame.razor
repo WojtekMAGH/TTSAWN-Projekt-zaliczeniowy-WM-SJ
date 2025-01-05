@@ -1,0 +1,173 @@
+﻿@page "/memory-game"
+@inject IJSRuntime JS
+
+<PageTitle>Memory Card Game</PageTitle>
+
+<div class="page-container">
+    <div class="section-title mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3>🎮 Memory Card Game</h3>
+            <div class="game-stats">
+                <span class="badge bg-primary me-2">
+                    ⭐ Score: @score
+                </span>
+                <span class="badge bg-info">
+                    ⏱️ Moves: @moves
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card game-card">
+        <div class="card-body">
+            <div class="game-controls mb-4">
+                <button class="btn btn-primary me-2" @onclick="StartNewGame">
+                    🔄 New Game
+                </button>
+                <select class="form-select w-auto" @bind="difficulty">
+                    <option value="easy">Easy (4x4)</option>
+                    <option value="medium">Medium (6x4)</option>
+                    <option value="hard">Hard (6x6)</option>
+                </select>
+            </div>
+
+            @if (hasWon)
+            {
+                <div class="alert alert-success">
+                    <h4>🏆 Congratulations!</h4>
+                    <p>You won in @moves moves! Would you like to play again?</p>
+                </div>
+            }
+
+            <div class="game-grid @difficulty">
+                @for (int i = 0; i < cards.Count; i++)
+                {
+                    var index = i;
+                    <div class="game-card @(cards[index].IsMatched ? "matched" : "") @(cards[index].IsRevealed ? "revealed" : "")"
+                         @onclick="() => HandleCardClick(index)">
+                        <div class="card-inner">
+                            <div class="card-front">
+                                ❓
+                            </div>
+                            <div class="card-back">
+                                @cards[index].Icon
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Card> cards = new();
+    private int? firstCardIndex;
+    private bool isProcessing;
+    private int moves;
+    private int score;
+    private bool hasWon;
+    private string difficulty = "easy";
+    private readonly string[] icons = new[]
+    {
+        "🌟", "🎮", "🎨", "🎭",
+        "🎪", "🎫", "🎯", "🎲",
+        "🌈", "🌸", "🌺", "🍀",
+        "🍎", "🍕", "🌍", "🚀",
+        "🎸", "🎪"
+    };
+
+    protected override void OnInitialized()
+    {
+        StartNewGame();
+    }
+
+    private void StartNewGame()
+    {
+        cards.Clear();
+        firstCardIndex = null;
+        moves = 0;
+        score = 0;
+        hasWon = false;
+        isProcessing = false;
+
+        int pairCount = difficulty switch
+        {
+            "easy" => 8,    // 4x4 grid
+            "medium" => 12, // 6x4 grid
+            "hard" => 18,   // 6x6 grid
+            _ => 8
+        };
+
+        // pairs of cards
+        var selectedIcons = icons.Take(pairCount).ToList();
+        foreach (var icon in selectedIcons)
+        {
+            cards.Add(new Card { Icon = icon });
+            cards.Add(new Card { Icon = icon });
+        }
+
+        // Shuffle cards
+        Random rng = new Random();
+        int n = cards.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = rng.Next(n + 1);
+            Card temp = cards[k];
+            cards[k] = cards[n];
+            cards[n] = temp;
+        }
+    }
+
+    private async Task HandleCardClick(int index)
+    {
+        if (isProcessing || cards[index].IsRevealed || cards[index].IsMatched)
+            return;
+
+        cards[index].IsRevealed = true;
+
+        if (firstCardIndex == null)
+        {
+            firstCardIndex = index;
+            return;
+        }
+
+        moves++;
+        isProcessing = true;
+
+        if (cards[firstCardIndex.Value].Icon == cards[index].Icon)
+        {
+            // Match found
+            cards[firstCardIndex.Value].IsMatched = true;
+            cards[index].IsMatched = true;
+            score += 10;
+
+            // win
+            if (cards.All(c => c.IsMatched))
+            {
+                hasWon = true;
+                await JS.InvokeVoidAsync("alert", $"Congratulations! You won in {moves} moves!");
+            }
+        }
+        else
+        {
+            // No match
+            await Task.Delay(1000);
+            cards[firstCardIndex.Value].IsRevealed = false;
+            cards[index].IsRevealed = false;
+            if (score > 0) score -= 1;
+        }
+
+        firstCardIndex = null;
+        isProcessing = false;
+        StateHasChanged();
+    }
+
+    private class Card
+    {
+        public string Icon { get; set; } = "";
+        public bool IsRevealed { get; set; }
+        public bool IsMatched { get; set; }
+    }
+}

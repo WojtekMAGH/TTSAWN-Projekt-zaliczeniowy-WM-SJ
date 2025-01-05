@@ -1,0 +1,186 @@
+﻿@page "/contact"
+@inject IJSRuntime JSRuntime
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Contact Us - TwitLink</PageTitle>
+
+<div class="contact-container">
+    <div class="contact-header">
+        <h1>Get in Touch</h1>
+        <p class="lead">We'd love to hear from you. Here's how you can reach us...</p>
+    </div>
+
+    <div class="contact-grid">
+        <!-- Quick Contact Cards -->
+        <div class="contact-info-section">
+            <div class="info-card">
+                <div class="icon-wrapper">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3>Business Hours</h3>
+                <p>Monday - Friday: 9:00 AM - 5:00 PM</p>
+                <p>Weekend: 10:00 AM - 5:00 PM</p>
+                <p>Time Zone: CEST</p>
+            </div>
+
+            <div class="info-card">
+                <div class="icon-wrapper">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <h3>Location</h3>
+                <p> Antoniego Gramatyka 10</p>
+                <p>AGH Faculty of Management</p>
+                <p>30-067, Kraków</p>
+            </div>
+
+            <div class="info-card">
+                <div class="icon-wrapper">
+                    <i class="fas fa-phone-alt"></i>
+                </div>
+                <h3>Phone</h3>
+                <p>Support: 506-505-504</p>
+                <p>Sales: 506-505-510</p>
+                <p>General: 506-505-514</p>
+            </div>
+
+            <div class="info-card">
+                <div class="icon-wrapper">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <h3>Email</h3>
+                <p>Support: support@twitlink.com</p>
+                <p>Sales: sales@twitlink.com</p>
+                <p>General: general@twitlink.com</p>
+            </div>
+        </div>
+
+        <!-- Contact Form -->
+        <div class="contact-form-section">
+            <div class="form-card">
+                <h2>Send us a Message</h2>
+                <EditForm Model="@contactForm" OnValidSubmit="@HandleSubmit">
+                    <DataAnnotationsValidator />
+
+                    <div class="form-group">
+                        <label for="name">Full Name</label>
+                        <InputText id="name" class="form-control" @bind-Value="contactForm.Name" />
+                        <ValidationMessage For="@(() => contactForm.Name)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <InputText id="email" class="form-control" @bind-Value="contactForm.Email" />
+                        <ValidationMessage For="@(() => contactForm.Email)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="subject">Subject</label>
+                        <InputText id="subject" class="form-control" @bind-Value="contactForm.Subject" />
+                        <ValidationMessage For="@(() => contactForm.Subject)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="message">Message</label>
+                        <InputTextArea id="message" class="form-control" @bind-Value="contactForm.Message" rows="5" />
+                        <ValidationMessage For="@(() => contactForm.Message)" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary submit-button">
+                        <span class="button-text">Send Message</span>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Section (about contact) -->
+    <div class="faq-section">
+        <h2>Frequently Asked Questions</h2>
+        <div class="faq-grid">
+            <div class="faq-item" @onclick="() => ToggleFaq(1)">
+                <div class="faq-header">
+                    <h3>What is the typical response time?</h3>
+                    <i class="fas fa-chevron-down @(expandedFaq == 1 ? "rotated" : "")"></i>
+                </div>
+                <div class="faq-content @(expandedFaq == 1 ? "expanded" : "")">
+                    <p>We typically respond to all inquiries within 24 hours during business days. For urgent matters, please use our phone support.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" @onclick="() => ToggleFaq(2)">
+                <div class="faq-header">
+                    <h3>Do you offer technical support?</h3>
+                    <i class="fas fa-chevron-down @(expandedFaq == 2 ? "rotated" : "")"></i>
+                </div>
+                <div class="faq-content @(expandedFaq == 2 ? "expanded" : "")">
+                    <p>Yes, our technical support team is available during business hours. For after-hours support, please email us, and we'll respond the next business day.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" @onclick="() => ToggleFaq(3)">
+                <div class="faq-header">
+                    <h3>Can I schedule a meeting?</h3>
+                    <i class="fas fa-chevron-down @(expandedFaq == 3 ? "rotated" : "")"></i>
+                </div>
+                <div class="faq-content @(expandedFaq == 3 ? "expanded" : "")">
+                    <p>Yes! You can schedule a meeting with our team through the contact form. Please mention your preferred time slots in the message.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Social Media Links -->
+    <div class="social-section">
+        <h2>Connect With Us</h2>
+        <div class="social-links">
+            <a href="#" class="social-link" title="Facebook">
+                <i class="fab fa-facebook-f"></i>
+            </a>
+            <a href="#" class="social-link" title="Twitter">
+                <i class="fab fa-twitter"></i>
+            </a>
+            <a href="#" class="social-link" title="LinkedIn">
+                <i class="fab fa-linkedin-in"></i>
+            </a>
+            <a href="#" class="social-link" title="Instagram">
+                <i class="fab fa-instagram"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ContactFormModel contactForm = new();
+    private int expandedFaq = 0;
+
+    private class ContactFormModel
+    {
+        [Required(ErrorMessage = "Please enter your name")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters")]
+        public string Name { get; set; } = "";
+
+        [Required(ErrorMessage = "Please enter your email")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Please enter a subject")]
+        [StringLength(200, MinimumLength = 5, ErrorMessage = "Subject must be between 5 and 200 characters")]
+        public string Subject { get; set; } = "";
+
+        [Required(ErrorMessage = "Please enter your message")]
+        [StringLength(1000, MinimumLength = 10, ErrorMessage = "Message must be between 10 and 1000 characters")]
+        public string Message { get; set; } = "";
+    }
+
+    private async Task HandleSubmit()
+    {
+        await JSRuntime.InvokeVoidAsync("alert", "Thank you for your message! We'll get back to you soon.");
+        contactForm = new ContactFormModel();
+    }
+
+    private void ToggleFaq(int faqId)
+    {
+        expandedFaq = expandedFaq == faqId ? 0 : faqId;
+    }
+}

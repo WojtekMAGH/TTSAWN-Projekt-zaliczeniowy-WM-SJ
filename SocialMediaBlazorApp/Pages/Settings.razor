@@ -1,0 +1,367 @@
+﻿@page "/settings"
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject IJSRuntime JS
+
+<PageTitle>Settings</PageTitle>
+
+<div class="settings-container">
+    <div class="settings-header mb-4">
+        <h1 class="settings-title">
+            <i class="fas fa-cog me-2"></i>Settings
+        </h1>
+        <p class="settings-subtitle">Customize your social media experience</p>
+    </div>
+
+    <div class="card settings-card">
+        <div class="card-body p-4">
+            <form @onsubmit="SaveSettings">
+                <!-- Post Defaults Section -->
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <i class="fas fa-pencil-alt section-icon"></i>
+                        <div>
+                            <h4 class="settings-section-title">Post Defaults</h4>
+                            <p class="settings-section-description">Configure how your new posts will behave</p>
+                        </div>
+                    </div>
+                    <div class="settings-section-content">
+                        <div class="setting-item">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="defaultPostPrivacy"
+                                       @bind="settings.DefaultPostsPublic">
+                                <label class="form-check-label" for="defaultPostPrivacy">
+                                    <span class="setting-label">Make new posts public by default</span>
+                                    <span class="setting-description">When enabled, all new posts will be visible to everyone</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <!-- User Interface Section -->
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <i class="fas fa-palette section-icon"></i>
+                        <div>
+                            <h4 class="settings-section-title">User Interface</h4>
+                            <p class="settings-section-description">Customize how your feed appears</p>
+                        </div>
+                    </div>
+                    <div class="settings-section-content">
+                        <div class="setting-item">
+                            <label class="form-label setting-label">Default Post Sort</label>
+                            <select class="form-select" @bind="settings.DefaultSortOption">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                            </select>
+                            <span class="setting-description">Choose how posts are ordered in your feed</span>
+                        </div>
+
+                        <div class="setting-item mt-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="showJokes"
+                                       @bind="settings.ShowDailyJokes">
+                                <label class="form-check-label" for="showJokes">
+                                    <span class="setting-label">Show daily jokes</span>
+                                    <span class="setting-description">Display a random joke on your homepage for a daily smile</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <!-- Action Buttons -->
+                <div class="settings-actions">
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-lg"
+                            @onclick="ResetToDefaults">
+                        <i class="fas fa-undo me-2"></i>Reset to Defaults
+                    </button>
+                    <button type="submit"
+                            class="btn btn-primary btn-lg"
+                            disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Saving Changes...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-save me-2"></i>
+                            <span>Save Changes</span>
+                        }
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .settings-container {
+        max-width: 800px;
+        margin: 3rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .settings-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .settings-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .settings-subtitle {
+        font-size: 1.1rem;
+        color: #6c757d;
+        margin: 0;
+    }
+
+    .settings-card {
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+        background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+    }
+
+    .settings-section {
+        padding: 1.5rem 0;
+    }
+
+    .settings-section-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-icon {
+        font-size: 1.5rem;
+        color: #3182ce;
+        background: #ebf8ff;
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+    }
+
+    .settings-section-title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+    }
+
+    .settings-section-description {
+        color: #718096;
+        margin: 0.25rem 0 0 0;
+        font-size: 0.95rem;
+    }
+
+    .settings-section-content {
+        padding-left: 3.25rem;
+    }
+
+    .setting-item {
+        margin-bottom: 1rem;
+    }
+
+    .setting-label {
+        font-weight: 500;
+        color: #2d3748;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .setting-description {
+        display: block;
+        color: #718096;
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+
+    .settings-divider {
+        height: 1px;
+        background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+        margin: 1rem 0;
+    }
+
+    .form-check-label {
+        display: flex;
+        flex-direction: column;
+        padding-left: 0.5rem;
+    }
+
+    .form-switch .form-check-input {
+        cursor: pointer;
+        width: 3.5em;
+        height: 1.75em;
+        margin-top: 0;
+    }
+
+        .form-switch .form-check-input:checked {
+            background-color: #3182ce;
+            border-color: #3182ce;
+        }
+
+    .form-select {
+        border-radius: 0.5rem;
+        border: 1px solid #e2e8f0;
+        padding: 0.625rem;
+        font-size: 1rem;
+        background-color: white;
+        max-width: 300px;
+    }
+
+        .form-select:focus {
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+        }
+
+    .settings-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 2rem;
+        margin-top: 2rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background-color: #3182ce;
+        border-color: #3182ce;
+        transition: all 0.2s ease;
+    }
+
+        .btn-primary:hover {
+            background-color: #2c5282;
+            border-color: #2c5282;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            background-color: #3182ce;
+            border-color: #3182ce;
+            opacity: 0.7;
+        }
+
+    .btn-outline-secondary {
+        color: #4a5568;
+        border-color: #e2e8f0;
+        transition: all 0.2s ease;
+    }
+
+        .btn-outline-secondary:hover {
+            background-color: #f7fafc;
+            border-color: #cbd5e0;
+            color: #2d3748;
+        }
+
+    /* Hover effects */
+    .setting-item:hover {
+        background-color: #f7fafc;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s ease;
+    }
+
+    .settings-card {
+        animation: slideIn 0.3s ease-out;
+    }
+</style>
+
+@code {
+    private bool isSaving = false;
+    private UserSettings settings = new();
+    private const string SETTINGS_KEY = "socialMediaSettings";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettings();
+    }
+
+    private async Task LoadSettings()
+    {
+        try
+        {
+            var settingsJson = await JS.InvokeAsync<string>("localStorage.getItem", SETTINGS_KEY);
+            if (!string.IsNullOrEmpty(settingsJson))
+            {
+                settings = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(settingsJson)
+                    ?? GetDefaultSettings();
+            }
+            else
+            {
+                settings = GetDefaultSettings();
+            }
+        }
+        catch
+        {
+            settings = GetDefaultSettings();
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        try
+        {
+            isSaving = true;
+            var settingsJson = System.Text.Json.JsonSerializer.Serialize(settings);
+            await JS.InvokeVoidAsync("localStorage.setItem", SETTINGS_KEY, settingsJson);
+            ToastService.ShowSuccess("Settings saved successfully!");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Failed to save settings. Please try again.");
+            Console.Error.WriteLine($"Error saving settings: {ex}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ResetToDefaults()
+    {
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Are you sure you want to reset all settings to their defaults?"
+        );
+
+        if (confirmed)
+        {
+            settings = GetDefaultSettings();
+            await SaveSettings();
+        }
+    }
+
+    private UserSettings GetDefaultSettings() => new()
+        {
+            DefaultPostsPublic = true,
+            DefaultSortOption = "newest",
+            ShowDailyJokes = true
+        };
+
+    public class UserSettings
+    {
+        public bool DefaultPostsPublic { get; set; }
+        public string DefaultSortOption { get; set; } = "newest";
+        public bool ShowDailyJokes { get; set; }
+    }
+}

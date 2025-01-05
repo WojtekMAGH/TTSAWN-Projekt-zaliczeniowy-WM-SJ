@@ -1,0 +1,49 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34408.163
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UserService", "SocialMediaApp\UserService.csproj", "{2DC9D59A-D299-4EE0-838E-F7738294EE6F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PostService_module", "PostService_module\PostService_module.csproj", "{9A273C79-233F-4883-9CF1-2808B62C753E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentityApi", "IdentityApi\IdentityApi.csproj", "{5C02697E-57D6-477E-87EC-D16183F8658B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SocialMediaBlazorApp", "SocialMediaBlazorApp\SocialMediaBlazorApp.csproj", "{F6EC67AA-5965-4D96-AA1E-1D5819FFD5EE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2AED3855-2C9F-4551-B48A-C0265ECB0202}"
+	ProjectSection(SolutionItems) = preProject
+		docker-compose.yml = docker-compose.yml
+		mssql.Dockerfile = mssql.Dockerfile
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2DC9D59A-D299-4EE0-838E-F7738294EE6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2DC9D59A-D299-4EE0-838E-F7738294EE6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2DC9D59A-D299-4EE0-838E-F7738294EE6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2DC9D59A-D299-4EE0-838E-F7738294EE6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9A273C79-233F-4883-9CF1-2808B62C753E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A273C79-233F-4883-9CF1-2808B62C753E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A273C79-233F-4883-9CF1-2808B62C753E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A273C79-233F-4883-9CF1-2808B62C753E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C02697E-57D6-477E-87EC-D16183F8658B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C02697E-57D6-477E-87EC-D16183F8658B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C02697E-57D6-477E-87EC-D16183F8658B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C02697E-57D6-477E-87EC-D16183F8658B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6EC67AA-5965-4D96-AA1E-1D5819FFD5EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6EC67AA-5965-4D96-AA1E-1D5819FFD5EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6EC67AA-5965-4D96-AA1E-1D5819FFD5EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6EC67AA-5965-4D96-AA1E-1D5819FFD5EE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {411376A9-0AB1-4914-BF81-DE92E20F96D1}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,131 @@
+﻿@page "/register"
+@using SocialMediaBlazorApp.Services
+@using System.ComponentModel.DataAnnotations
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+
+<PageTitle>Register</PageTitle>
+
+<div class="register-container">
+    <EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="form-group">
+            <label for="firstName">First Name:</label>
+            <InputText id="firstName" @bind-Value="registerModel.FirstName" class="form-control" />
+            <ValidationMessage For="@(() => registerModel.FirstName)" />
+        </div>
+        <div class="form-group">
+            <label for="lastName">Last Name:</label>
+            <InputText id="lastName" @bind-Value="registerModel.LastName" class="form-control" />
+            <ValidationMessage For="@(() => registerModel.LastName)" />
+        </div>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <InputText id="email" @bind-Value="registerModel.Email" class="form-control" />
+            <ValidationMessage For="@(() => registerModel.Email)" />
+        </div>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <InputText type="password" id="password" @bind-Value="registerModel.Password" class="form-control" />
+            <ValidationMessage For="@(() => registerModel.Password)" />
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Register</button>
+    </EditForm>
+
+    <div class="login-link-container mt-4 text-center">
+        <a href="/login" class="btn btn-outline-info btn-sm w-100">
+            <i class="fas fa-sign-in-alt"></i> Login Here
+        </a>
+    </div>
+</div>
+
+<style>
+    .register-container {
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 2rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .login-link-container {
+        margin-top: 1rem;
+    }
+
+        .login-link-container .btn {
+            font-weight: bold;
+            color: #007bff;
+            border-color: #007bff;
+        }
+
+            .login-link-container .btn:hover {
+                background-color: #007bff;
+                color: #fff;
+                text-decoration: none;
+            }
+</style>
+
+@code {
+    private RegisterModel registerModel = new();
+    private string? ErrorMessage;
+    private class RegisterModel
+    {
+        [Required(ErrorMessage = "First name is required")]
+        [StringLength(50, ErrorMessage = "First name cannot exceed 50 characters")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required")]
+        [StringLength(50, ErrorMessage = "Last name cannot exceed 50 characters")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$",
+            ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, and one number")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    private async Task HandleRegister()
+    {
+        try
+        {
+            var isRegistered = await AuthService.RegisterAsync(
+                registerModel.FirstName,
+                registerModel.LastName,
+                registerModel.Email,
+                registerModel.Password
+            );
+
+            if (isRegistered)
+            {
+                ToastService.ShowSuccess("Registration successful! Please login with your credentials.");
+                await Task.Delay(1500); // Wait for 1.5s
+                NavigationManager.NavigateTo("/login");
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            // duplicate email
+            ErrorMessage = ex.Message;
+            ToastService.ShowError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            // general errors
+            ErrorMessage = "An unexpected error occurred. Please try again later.";
+            ToastService.ShowError("An unexpected error occurred. Please try again later.");
+        }
+    }
+}

@@ -1,0 +1,151 @@
+version: '3.8'
+services:
+  identityapi:
+    container_name: identityapi
+    build:
+      context: ./IdentityApi
+      dockerfile: Dockerfile
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORT=
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US:en
+      - LC_ALL=en_US.UTF-8
+    networks:
+      - socialmediaapp-network
+    depends_on:
+       userservice:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postservice:
+    container_name: postservice
+    build:
+      context: ./PostService_module
+      dockerfile: Dockerfile
+    ports:
+      - "5002:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORT=
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=
+      - ConnectionStrings__DefaultConnection=Server=mssql;Database=PostsDb;User Id=sa;Password=Very@Strong#Passw0rd$;TrustServerCertificate=True;
+      - UserService__BaseUrl=http://userservice:8080
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US:en
+      - LC_ALL=en_US.UTF-8
+    volumes:
+      - ./PostService_module/wwwroot/uploads:/app/wwwroot/uploads
+    networks:
+      - socialmediaapp-network
+    depends_on:
+      userservice:
+        condition: service_healthy
+      mssql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  userservice:
+    container_name: userservice
+    build:
+      context: ./SocialMediaApp
+      dockerfile: Dockerfile
+    ports:
+      - "5003:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORT=
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=
+      - ConnectionStrings__DefaultConnection=Server=mssql;Database=UsersDb;User Id=sa;Password=Very@Strong#Passw0rd$;TrustServerCertificate=True;
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US:en
+      - LC_ALL=en_US.UTF-8
+    networks:
+      - socialmediaapp-network
+    depends_on:
+      mssql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  blazor-client:
+    container_name: blazor-client
+    build:
+      context: .
+      dockerfile: SocialMediaBlazorApp/Dockerfile
+    ports:
+      - "5000:80"
+    environment:
+      - ApiUrls__IdentityApi=http://identityapi:8080
+      - ApiUrls__PostService=http://postservice:8080
+      - ApiUrls__UserService=http://userservice:8080
+    networks:
+      - socialmediaapp-network
+    depends_on:
+      identityapi:
+        condition: service_healthy
+      postservice:
+        condition: service_healthy
+      userservice:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mssql:
+    container_name: mssql
+    build:
+      context: .
+      dockerfile: mssql.Dockerfile
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Very@Strong#Passw0rd$
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    networks:
+      - socialmediaapp-network
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Very@Strong#Passw0rd$" -Q "SELECT 1"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  socialmediaapp-network:
+    driver: bridge
+
+volumes:
+  post-uploads:
+  sqldata:  

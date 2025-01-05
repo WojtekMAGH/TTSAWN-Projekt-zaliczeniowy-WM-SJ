@@ -1,0 +1,36 @@
+﻿@using Microsoft.Extensions.Logging
+@using SocialMediaBlazorApp.Services
+@inject ErrorLoggerService ErrorLogger
+@inject NavigationManager NavigationManager
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p role="alert">Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
+@code {
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+            {
+                ErrorLogger.LogError(ex);
+            }
+        };
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        if (NavigationManager.Uri.EndsWith("/"))
+        {
+            NavigationManager.NavigateTo("/login", true);
+        }
+    }
+}

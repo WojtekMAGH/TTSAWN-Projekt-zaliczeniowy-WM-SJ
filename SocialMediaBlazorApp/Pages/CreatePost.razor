@@ -1,0 +1,473 @@
+﻿@page "/create-post"
+@using SocialMediaBlazorApp.Services
+@using SocialMediaBlazorApp.Models
+@using System.Net.Http.Headers
+@using Microsoft.AspNetCore.Components.Forms
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<PageTitle>Create New Post</PageTitle>
+
+<div class="page-container">
+    <div class="content-header">
+        <h1 class="page-title">
+            <i class="fas fa-pencil-alt me-2"></i>Create New Post
+        </h1>
+        <p class="page-subtitle">Share your thoughts with your audience</p>
+    </div>
+
+    <div class="create-post-container">
+        <div class="card">
+            <div class="card-body p-4">
+                <div class="mb-4">
+                    <label class="form-label content-label">Share your thoughts</label>
+                    <textarea class="form-control content-textarea"
+                              placeholder="What's on your mind?"
+                              @bind="newPostContent"
+                              @bind:event="oninput"
+                              maxlength="500"
+                              rows="4"
+                              disabled="@isSubmitting">
+                    </textarea>
+                    <small class="text-muted character-count">@(500 - (newPostContent?.Length ?? 0)) characters remaining</small>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label content-label">Add an image</label>
+                    <div class="upload-container">
+                        <InputFile OnChange="@HandleImageUpload"
+                                   accept="image/*"
+                                   class="form-control"
+                                   disabled="@isSubmitting" />
+                        @if (isUploadingImage)
+                        {
+                            <div class="upload-spinner">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Uploading...</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(newPostImageUrl))
+                    {
+                        <div class="image-preview">
+                            <img src="@GetFullImageUrl(newPostImageUrl)"
+                                 class="preview-image"
+                                 alt="Selected image"
+                                 @onerror="@(e => HandleImageError(e))" />
+                            <button class="remove-image-btn"
+                                    @onclick="RemoveSelectedImage"
+                                    type="button">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label content-label">Post Privacy</label>
+                    <div class="privacy-toggle">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   @bind="newPostIsPublic"
+                                   id="postPrivacy">
+                            <label class="form-check-label" for="postPrivacy">
+                                @if (newPostIsPublic)
+                                {
+                                    <i class="fas fa-globe privacy-icon"></i>
+                                    <span>Public post - Everyone can see this</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-lock privacy-icon"></i>
+                                    <span>Private post - Only you can see this</span>
+                                }
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-outline-secondary btn-lg"
+                            @onclick="NavigateToFeed">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Feed
+                    </button>
+                    <button class="btn btn-primary btn-lg share-button"
+                            @onclick="SubmitPost"
+                            disabled="@(isSubmitting || string.IsNullOrWhiteSpace(newPostContent))">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Sharing...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-paper-plane me-2"></i>
+                            <span>Share Post</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .page-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .content-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-subtitle {
+        color: #718096;
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .card {
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+        background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+    }
+
+    .content-label {
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .content-textarea {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        font-size: 1.1rem;
+        resize: vertical;
+        min-height: 120px;
+        background-color: white;
+        transition: all 0.2s ease;
+    }
+
+        .content-textarea:focus {
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+        }
+
+    .character-count {
+        margin-top: 0.5rem;
+        color: #718096;
+    }
+
+    .upload-container {
+        position: relative;
+    }
+
+    .upload-spinner {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .image-preview {
+        margin-top: 1rem;
+        position: relative;
+        display: inline-block;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .preview-image {
+        max-height: 250px;
+        object-fit: contain;
+        background-color: #f7fafc;
+    }
+
+    .remove-image-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background-color: #e53e3e;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .remove-image-btn:hover {
+            background-color: #c53030;
+            transform: scale(1.1);
+        }
+
+    .privacy-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: #f7fafc;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid #e2e8f0;
+    }
+
+    .privacy-icon {
+        margin-right: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .form-switch .form-check-label {
+        display: flex;
+        align-items: center;
+        font-size: 1rem;
+        color: #4a5568;
+    }
+
+    .form-switch .form-check-input {
+        margin-right: 0.5rem;
+    }
+
+        .form-switch .form-check-input:checked {
+            background-color: #3182ce;
+            border-color: #3182ce;
+        }
+
+    .action-buttons {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .share-button {
+        min-width: 140px;
+        background-color: #3182ce;
+        border-color: #3182ce;
+    }
+
+        .share-button:hover:not(:disabled) {
+            background-color: #2c5282;
+            border-color: #2c5282;
+            transform: translateY(-1px);
+        }
+
+    .btn-outline-secondary {
+        color: #4a5568;
+        border-color: #e2e8f0;
+    }
+
+        .btn-outline-secondary:hover {
+            background-color: #f7fafc;
+            color: #2d3748;
+            border-color: #cbd5e0;
+        }
+</style>
+
+@code {
+    private string newPostContent = string.Empty;
+    private bool isSubmitting = false;
+    private HttpClient? postClient;
+    private string? newPostImageUrl;
+    private bool newPostIsPublic = true;
+    private bool isUploadingImage;
+    private const string SETTINGS_KEY = "socialMediaSettings";
+
+    protected override void OnInitialized()
+    {
+        postClient = HttpClientFactory.CreateClient("PostService");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        await LoadSettings();
+    }
+
+    private async Task LoadSettings()
+    {
+        try
+        {
+            var settingsJson = await JS.InvokeAsync<string>("localStorage.getItem", SETTINGS_KEY);
+            if (!string.IsNullOrEmpty(settingsJson))
+            {
+                var settings = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(settingsJson);
+                if (settings != null)
+                {
+                    newPostIsPublic = settings.DefaultPostsPublic;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading settings: {ex}");
+        }
+    }
+
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            isUploadingImage = true;
+            var imageFile = e.File;
+            var resizedImage = await ResizeImage(imageFile, 800);
+            var imageContent = new MultipartFormDataContent();
+            imageContent.Add(new ByteArrayContent(resizedImage), "file", imageFile.Name);
+
+            await EnsureAuthorization();
+            var response = await postClient!.PostAsync("api/post/upload", imageContent);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var uploadResult = await response.Content.ReadFromJsonAsync<UploadResult>();
+                if (uploadResult != null)
+                {
+                    newPostImageUrl = uploadResult.Url;
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Failed to upload image: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Failed to upload image.");
+            Console.Error.WriteLine($"Error uploading image: {ex}");
+        }
+        finally
+        {
+            isUploadingImage = false;
+        }
+    }
+
+    private async Task<byte[]> ResizeImage(IBrowserFile file, int maxWidth)
+    {
+        using var imageStream = file.OpenReadStream(maxAllowedSize: 10485760);
+        using var memoryStream = new MemoryStream();
+        await imageStream.CopyToAsync(memoryStream);
+        return memoryStream.ToArray();
+    }
+
+    private void RemoveSelectedImage()
+    {
+        newPostImageUrl = null;
+    }
+
+    private async Task EnsureAuthorization()
+    {
+        var token = await AuthService.GetTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            postClient!.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task SubmitPost()
+    {
+        if (string.IsNullOrWhiteSpace(newPostContent)) return;
+
+        try
+        {
+            isSubmitting = true;
+            await EnsureAuthorization();
+
+            var createPostDto = new CreatePostDTO
+                {
+                    Content = newPostContent,
+                    ImageUrl = newPostImageUrl,
+                    IsPublic = newPostIsPublic
+                };
+
+            var response = await postClient!.PostAsJsonAsync("api/post", createPostDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                newPostContent = string.Empty;
+                newPostImageUrl = null;
+                newPostIsPublic = true;
+                ToastService.ShowSuccess("Post created successfully!");
+                NavigateToFeed();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Failed to create post: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Failed to create post. Please try again.");
+            Console.Error.WriteLine($"Error creating post: {ex}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void NavigateToFeed()
+    {
+        NavigationManager.NavigateTo("/posts");
+    }
+
+    private string GetFullImageUrl(string? imageUrl)
+    {
+        if (string.IsNullOrEmpty(imageUrl))
+            return string.Empty;
+
+        var baseUrl = postClient?.BaseAddress?.ToString()?.TrimEnd('/');
+        return $"{baseUrl}{imageUrl}";
+    }
+
+    private void HandleImageError(ErrorEventArgs e)
+    {
+        Console.Error.WriteLine("Failed to load image");
+    }
+
+    private class UserSettings
+    {
+        public bool DefaultPostsPublic { get; set; }
+        public string DefaultSortOption { get; set; } = "newest";
+        public bool ShowDailyJokes { get; set; }
+    }
+}

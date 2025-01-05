@@ -1,0 +1,442 @@
+﻿@inherits LayoutComponentBase
+@inject Blazored.Toast.Services.IToastService ToastService
+@inject SocialMediaBlazorApp.Services.AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IHttpClientFactory HttpClientFactory
+@using SocialMediaBlazorApp.Models
+@using System.Net.Http.Headers
+
+<div class="layout-container">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <NavLink href="" class="brand">
+                <i class="fas fa-share-nodes"></i>
+                <span class="brand-name">TwitLink</span>
+            </NavLink>
+        </div>
+        <NavMenu />
+    </div>
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="top-bar-right">
+                @if (_isLoading)
+                {
+                    <div class="loading-spinner">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                    </div>
+                }
+                else if (!_isAuthenticated)
+                {
+                    <div class="auth-buttons">
+                        <NavLink href="login" class="auth-button">
+                            <span>Login</span>
+                        </NavLink>
+                        <NavLink href="register" class="auth-button signup">
+                            <span>Sign up</span>
+                        </NavLink>
+                    </div>
+                }
+                else
+                {
+                    <div class="user-menu" @onclick="ToggleUserMenu">
+                        <div class="user-profile">
+                            <div class="user-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span class="username">@($"{_userProfile?.FirstName} {_userProfile?.LastName}")</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        @if (_isUserMenuOpen)
+                        {
+                            <div class="user-dropdown">
+                                <NavLink href="profile" class="dropdown-item">
+                                    <i class="fas fa-user"></i>
+                                    <span>Profile</span>
+                                </NavLink>
+                                <NavLink href="settings" class="dropdown-item">
+                                    <i class="fas fa-cog"></i>
+                                    <span>Settings</span>
+                                </NavLink>
+                                <div class="dropdown-divider"></div>
+                                <button @onclick="HandleLogout" class="dropdown-item logout">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    <span>Logout</span>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </header>
+        <div class="content-wrapper">
+            @Body
+        </div>
+    </main>
+</div>
+
+<BlazoredToasts Position="Blazored.Toast.Configuration.ToastPosition.TopCenter"
+                Timeout="5"
+                ShowProgressBar="true"
+                IconType="Blazored.Toast.Configuration.IconType.FontAwesome"
+                SuccessClass="success-toast-override"
+                ErrorClass="error-toast-override" />
+
+@code {
+    private bool _isAuthenticated;
+    private bool _isLoading = true;
+    private bool _isUserMenuOpen = false;
+    private UserProfileDTO? _userProfile;
+    private string? _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (_isAuthenticated)
+        {
+            await LoadUserProfile();
+        }
+        _isLoading = false;
+    }
+
+    private async Task LoadUserProfile()
+    {
+        try
+        {
+            _currentUserId = await GetCurrentUserIdFromToken();
+            if (_currentUserId != null)
+            {
+                var userClient = HttpClientFactory.CreateClient("UserService");
+                await EnsureAuthorization(userClient);
+                var response = await userClient.GetAsync($"api/user/{_currentUserId}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _userProfile = await response.Content.ReadFromJsonAsync<UserProfileDTO>();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading profile: {ex}");
+        }
+    }
+
+    private async Task<string?> GetCurrentUserIdFromToken()
+    {
+        try
+        {
+            var token = await AuthService.GetTokenAsync();
+            if (string.IsNullOrEmpty(token))
+                return null;
+
+            var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+            return jwtToken.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task EnsureAuthorization(HttpClient client)
+    {
+        var token = await AuthService.GetTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        _isAuthenticated = false;
+        _isUserMenuOpen = false;
+        _userProfile = null;
+        NavigationManager.NavigateTo("/login");
+    }
+
+    private void ToggleUserMenu()
+    {
+        _isUserMenuOpen = !_isUserMenuOpen;
+    }
+}
+
+<style>
+    /* Layout Container */
+    .layout-container {
+        display: flex;
+        min-height: 100vh;
+        background-color: #f8fafc;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        width: 280px;
+        background: white;
+        border-right: 1px solid #e2e8f0;
+        transition: width 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+        z-index: 1000;
+    }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+    .sidebar-header {
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-decoration: none !important;
+        color: #2d3748;
+        font-weight: 700;
+        font-size: 1.25rem;
+    }
+
+        .brand i {
+            font-size: 1.5rem;
+            color: #1d9bf0;
+        }
+
+    .collapsed .brand-name {
+        display: none;
+    }
+
+    .toggle-btn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: #f8fafc;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+        .toggle-btn:hover {
+            background: #e2e8f0;
+        }
+
+    /* Main Content Area */
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    /* Top Bar */
+    .top-bar {
+        height: 64px;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1.5rem;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+
+    .top-bar-right {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-left: auto;
+    }
+
+    .menu-toggle {
+        display: none;
+        padding: 0.5rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #4a5568;
+    }
+
+    /* Auth Buttons */
+    .auth-buttons {
+        display: flex;
+        justify-content: flex-end; 
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .auth-button {
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        min-width: 84px;
+        text-align: center;
+        border: 1px solid #1d9bf0;
+        color: #1d9bf0;
+        background: transparent;
+    }
+
+        .auth-button:hover {
+            background: rgba(29, 155, 240, 0.1);
+            text-decoration: none;
+            color: #1d9bf0;
+        }
+
+        .auth-button.signup {
+            background: #1d9bf0;
+            color: white;
+        }
+
+            .auth-button.signup:hover {
+                background: #1a8cd8;
+                border-color: #1a8cd8;
+                color: white;
+            }
+
+    /* User Menu */
+    .user-menu {
+        position: relative;
+    }
+
+    .user-profile {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 9999px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: transparent;
+    }
+
+        .user-profile:hover {
+            background: rgba(29, 155, 240, 0.1);
+        }
+
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #1d9bf0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+    }
+
+    .username {
+        font-weight: 600;
+        color: #0f1419;
+    }
+
+    /* Dropdown Menu */
+    .user-dropdown {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        right: 0;
+        width: 220px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 0 15px rgba(101, 119, 134, 0.2), 0 0 3px 1px rgba(101, 119, 134, 0.15);
+        padding: 0.5rem;
+        z-index: 1000;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        color: #0f1419;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border-radius: 8px;
+        width: 100%;
+        border: none;
+        background: none;
+        font-size: 0.95rem;
+        cursor: pointer;
+    }
+
+        .dropdown-item:hover {
+            background: rgba(29, 155, 240, 0.1);
+            color: #1d9bf0;
+        }
+
+        .dropdown-item i {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+            color: #536471;
+        }
+
+        .dropdown-item:hover i {
+            color: #1d9bf0;
+        }
+
+    .dropdown-divider {
+        height: 1px;
+        background: rgba(0, 0, 0, 0.08);
+        margin: 0.5rem 0;
+    }
+
+    .logout {
+        color: #f4212e;
+    }
+
+        .logout:hover {
+            background: rgba(244, 33, 46, 0.1);
+            color: #f4212e;
+        }
+
+            .logout:hover i {
+                color: #f4212e;
+            }
+
+    /* Loading Spinner */
+    .loading-spinner {
+        color: #1d9bf0;
+        font-size: 1.25rem;
+    }
+
+    /* Content Area */
+    .content-wrapper {
+        padding: 2rem;
+        flex: 1;
+    }
+
+    /* Toast Overrides */
+    .success-toast-override {
+        background-color: #059669 !important;
+        color: white !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    .error-toast-override {
+        background-color: #dc2626 !important;
+        color: white !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    }
+</style>

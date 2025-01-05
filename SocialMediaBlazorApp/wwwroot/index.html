@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- SEO and Tags, not used (search engine) -->
+    <title>TwitLink - Connect and Share</title>
+    <meta name="description" content="Join TwitLink to connect with friends, share moments, and engage with your community." />
+    <meta name="keywords" content="social media, social network, connect, share, friends, community" />
+    <meta name="author" content="TwitLink" />
+
+    <!-- Not used - only valid for external sites sharing -->
+    <meta property="og:title" content="TwitLink - Connect and Share" />
+    <meta property="og:description" content="Join TwitLink to connect with friends, share moments, and engage with your community." />
+    <meta property="og:type" content="website" />
+
+    <!-- PWA Support
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#1b6ec2" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    -->
+
+    <!-- Base URL -->
+    <base href="/" />
+
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="css/bootstrap/bootstrap.min.css" as="style" />
+    <link rel="preload" href="css/app.css" as="style" />
+    <link rel="preload" href="_framework/blazor.webassembly.js" as="script" />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link href="SocialMediaBlazorApp.styles.css" rel="stylesheet" />
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+
+    <!-- Auth Token Cleanup Script -->
+    <script>
+        if (!sessionStorage.getItem('appInitialized')) {
+            localStorage.removeItem('authToken');
+            sessionStorage.setItem('appInitialized', 'true');
+        }
+
+        window.addEventListener('online', function () {
+            document.body.classList.remove('offline');
+            if (window.toastService) {
+                window.toastService.showSuccess('Back online!');
+            }
+        });
+
+        window.addEventListener('offline', function () {
+            document.body.classList.add('offline');
+            if (window.toastService) {
+                window.toastService.showWarning('You are offline. Some features may be limited.');
+            }
+        });
+
+        window.addEventListener('load', function () {
+            if (window.performance) {
+                const timing = window.performance.timing;
+                const loadTime = timing.domContentLoadedEventEnd - timing.navigationStart;
+                console.log('Page load time:', loadTime, 'ms');
+            }
+        });
+    </script>
+
+    <!-- Custom loading animation styles -->
+    <style>
+        .app-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            z-index: 1000;
+        }
+
+        .loading-progress {
+            width: 100px;
+            height: 100px;
+            animation: spin 1s linear infinite;
+        }
+
+            .loading-progress circle {
+                fill: none;
+                stroke: #1b6ec2;
+                stroke-width: 4;
+                stroke-linecap: round;
+                transform-origin: 50% 50%;
+            }
+
+        .loading-progress-text {
+            margin-top: 16px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #1b6ec2;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .offline {
+            filter: grayscale(0.5);
+        }
+
+        #blazor-error-ui {
+            background: #fee2e2 !important;
+            border: 1px solid #ef4444 !important;
+            border-radius: 8px !important;
+            bottom: 16px !important;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+            display: none !important;
+            margin: 16px !important;
+            padding: 1rem !important;
+            position: fixed !important;
+            right: 16px !important;
+            z-index: 1000 !important;
+        }
+
+            #blazor-error-ui .reload {
+                color: #1b6ec2 !important;
+                text-decoration: none !important;
+                margin-left: 8px !important;
+            }
+
+            #blazor-error-ui .dismiss {
+                cursor: pointer !important;
+                float: right !important;
+                margin-left: 16px !important;
+            }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="app-loading">
+            <div class="loading-branding">
+                <i class="fas fa-share-nodes"></i>
+                <span class="loading-branding-text">TwitLink</span>
+            </div>
+            <svg class="loading-progress">
+                <circle r="40%" cx="50%" cy="50%" />
+                <circle r="40%" cx="50%" cy="50%" />
+            </svg>
+            <div class="loading-progress-text"></div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        <i class="fas fa-exclamation-circle"></i>
+        An error has occurred.
+        <a href="" class="reload">
+            <i class="fas fa-sync-alt"></i> Reload
+        </a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <!-- Blazor WebAssembly Script -->
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+</html>
+
+<style>
+    .app-loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        z-index: 1000;
+    }
+
+    .loading-progress {
+        position: relative;
+        width: 120px;
+        height: 120px;
+    }
+
+        .loading-progress circle {
+            fill: none;
+            stroke: #1d9bf0; 
+            stroke-width: 5;
+            stroke-linecap: round;
+            transform-origin: 50% 50%;
+        }
+
+            .loading-progress circle:first-child {
+                stroke: #e8f5fe; 
+            }
+
+            .loading-progress circle:last-child {
+                stroke: #1d9bf0;
+                stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+                transition: stroke-dasharray 0.05s ease-in-out;
+            }
+
+    .loading-progress-text {
+        margin-top: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #0f1419;
+    }
+
+        .loading-progress-text::after {
+            content: var(--blazor-load-percentage-text, "Loading TwitLink");
+        }
+
+    .loading-branding {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+        .loading-branding i {
+            font-size: 2.5rem;
+            color: #1d9bf0;
+        }
+
+    .loading-branding-text {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0f1419;
+    }
+
+    .loading-message {
+        margin-top: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 0.9rem;
+        color: #536471;
+        background: #f7f9f9;
+        padding: 8px 16px;
+        border-radius: 9999px;
+        transition: opacity 0.3s ease;
+    }
+
+    .offline {
+        filter: grayscale(0.5);
+    }
+
+    #blazor-error-ui {
+        background: #fee2e2 !important;
+        border: 1px solid #ef4444 !important;
+        border-radius: 12px !important;
+        bottom: 16px !important;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+        display: none !important;
+        margin: 16px !important;
+        padding: 1rem !important;
+        position: fixed !important;
+        right: 16px !important;
+        z-index: 1000 !important;
+    }
+
+        #blazor-error-ui .reload {
+            color: #1d9bf0 !important;
+            
+            
+            
+            
+            : none !important;
+            margin-left: 8px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+
+        #blazor-error-ui .dismiss {
+            cursor: pointer !important;
+            float: right !important;
+            margin-left: 16px !important;
+            color: #536471 !important;
+        }
+
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.7;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+</style>

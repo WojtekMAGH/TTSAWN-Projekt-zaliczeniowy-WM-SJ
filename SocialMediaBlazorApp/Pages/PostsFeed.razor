@@ -1,0 +1,944 @@
+﻿@page "/posts"
+@using SocialMediaBlazorApp.Services
+@using SocialMediaBlazorApp.Models
+@using System.Net.Http.Headers
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IdentityModel.Tokens.Jwt
+@inject IHttpClientFactory HttpClientFactory
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@inject AuthService AuthService
+
+<PageTitle>Posts Feed</PageTitle>
+
+<div class="page-container">
+    <div class="content-header">
+        <h1 class="page-title">
+            <i class="fas fa-stream me-2"></i>Posts Feed
+        </h1>
+        <p class="page-subtitle">Discover and share updates with your network</p>
+    </div>
+
+    <!-- Search and Filter Controls -->
+    <div class="controls-container">
+        <div class="card">
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <!-- Search -->
+                    <div class="col-md-6">
+                        <label class="control-label">Search Posts</label>
+                        <div class="search-input">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text"
+                                   class="form-control search-control"
+                                   placeholder="Search by content or author..."
+                                   @bind-value="searchTerm"
+                                   @bind-value:event="oninput" />
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="col-md-3">
+                        <label class="control-label">Privacy Filter</label>
+                        <select class="form-select custom-select" @bind="privacyFilter">
+                            <option value="all">All Posts</option>
+                            <option value="public">Public Posts Only</option>
+                            <option value="private">Private Posts Only</option>
+                        </select>
+                    </div>
+
+                    <!-- Sort -->
+                    <div class="col-md-3">
+                        <label class="control-label">Sort By</label>
+                        <select class="form-select custom-select" @bind="sortOption">
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feed Header -->
+    <div class="feed-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    <div class="search-result">
+                        <i class="fas fa-search me-2"></i>
+                        Showing results for: "@searchTerm"
+                    </div>
+                }
+            </div>
+            <button class="btn btn-primary btn-lg create-post-btn" @onclick="NavigateToCreate">
+                <i class="fas fa-plus me-2"></i>
+                Create New Post
+            </button>
+        </div>
+    </div>
+
+    <!-- Posts Feed -->
+    <div class="posts-feed">
+        @if (isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading posts...</span>
+                </div>
+                <p class="loading-text">Loading your feed...</p>
+            </div>
+        }
+        else if (!posts.Any())
+        {
+            <div class="empty-state">
+                <i class="fas fa-comment-dots empty-icon"></i>
+                <h3>No posts yet</h3>
+                <p>Be the first to share something with your network!</p>
+                <button class="btn btn-primary btn-lg mt-3" @onclick="NavigateToCreate">
+                    <i class="fas fa-plus me-2"></i>Create Your First Post
+                </button>
+            </div>
+        }
+        else
+        {
+            foreach (var post in FilteredAndSortedPosts)
+            {
+                <div class="post-card" @key="post.Id">
+                    <div class="card-body">
+                        <div class="post-header">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="user-info">
+                                    <h5 class="author-name">@post.FirstName @post.LastName</h5>
+                                    <div class="post-metadata">
+                                        <span class="join-date">
+                                            <i class="fas fa-user-clock me-1"></i>
+                                            Joined @post.UserRegisteredAt.ToString("MMMM d, yyyy")
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="post-status">
+                                    <span class="visibility-badge @(post.IsPublic ? "public" : "private")">
+                                        <i class="fas @(post.IsPublic ? "fa-globe" : "fa-lock") me-1"></i>
+                                        @(post.IsPublic ? "Public" : "Private")
+                                    </span>
+                                    <div class="post-time">
+                                        <i class="fas fa-clock me-1"></i>
+                                        @FormatTimestamp(post.CreatedAt)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="post-content">
+                            <p class="content-text">@post.Content</p>
+
+                            @if (!string.IsNullOrEmpty(post.ImageUrl))
+                            {
+                                <div class="post-image">
+                                    <img src="@GetFullImageUrl(post.ImageUrl)"
+                                         class="content-image"
+                                         alt="Post image"
+                                         @onerror="@(e => HandleImageError(e))" />
+                                </div>
+                            }
+                        </div>
+
+                        @if (post.UserId.ToString() == currentUserId)
+                        {
+                            <div class="post-actions">
+                                <button class="btn btn-outline-primary btn-action" @onclick="() => EditPost(post)">
+                                    <i class="fas fa-edit me-2"></i>Edit
+                                </button>
+                                <button class="btn btn-outline-danger btn-action" @onclick="() => DeletePostWithConfirmation(post.Id)">
+                                    <i class="fas fa-trash me-2"></i>Delete
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Edit Modal -->
+    @if (isEditModalOpen)
+    {
+        <div class="modal-overlay">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-edit me-2"></i>Edit Post
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseEditModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-4">
+                            <label class="modal-label">Content</label>
+                            <textarea class="form-control content-textarea"
+                                      @bind="editingPost.Content"
+                                      @bind:event="oninput"
+                                      rows="4"
+                                      maxlength="500">@editingPost.Content</textarea>
+                            <small class="character-count">@(500 - (editingPost.Content?.Length ?? 0)) characters remaining</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="modal-label">Image</label>
+                            <InputFile OnChange="@HandleEditImageUpload" accept="image/*" class="form-control" />
+                            @if (!string.IsNullOrEmpty(editingPost.ImageUrl))
+                            {
+                                <div class="image-preview">
+                                    <img src="@GetFullImageUrl(editingPost.ImageUrl)"
+                                         alt="Post image"
+                                         @onerror="@(e => HandleImageError(e))" />
+                                    <button class="remove-image-btn"
+                                            @onclick="RemoveEditImage"
+                                            type="button">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="modal-label">Post Privacy</label>
+                            <div class="privacy-toggle">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           @bind="editingPost.IsPublic"
+                                           id="editPostPrivacy">
+                                    <label class="form-check-label" for="editPostPrivacy">
+                                        @if (editingPost.IsPublic)
+                                        {
+                                            <i class="fas fa-globe me-2"></i>
+                                            <span>Public post - Everyone can see this</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-lock me-2"></i>
+                                            <span>Private post - Only you can see this</span>
+                                        }
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-lg"
+                                @onclick="CloseEditModal">
+                            Cancel
+                        </button>
+                        <button type="button"
+                                class="btn btn-primary btn-lg"
+                                @onclick="SaveEditedPost"
+                                disabled="@(string.IsNullOrWhiteSpace(editingPost.Content))">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .page-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .content-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-subtitle {
+        color: #718096;
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .controls-container {
+        margin-bottom: 2rem;
+    }
+
+        .controls-container .card {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+            background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+        }
+
+    .control-label {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 0.75rem;
+    }
+
+    .search-input {
+        position: relative;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #a0aec0;
+    }
+
+    .search-control {
+        padding-left: 2.5rem;
+        height: 3rem;
+        border-radius: 0.75rem;
+        border: 1px solid #e2e8f0;
+    }
+
+        .search-control:focus {
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+        }
+
+    .custom-select {
+        height: 3rem;
+        border-radius: 0.75rem;
+        border: 1px solid #e2e8f0;
+        padding: 0 1rem;
+    }
+
+    .feed-header {
+        margin: 2rem 0;
+    }
+
+    .search-result {
+        color: #718096;
+        font-size: 0.95rem;
+    }
+
+    .create-post-btn {
+        font-size: 0.9rem;
+        padding: 0.3rem 0.8rem;
+        border-radius: 0.8rem;
+        font-weight: 500;
+    }
+
+        .create-post-btn i {
+            font-size: 0.9rem;
+            margin-right: 0.5rem;
+        }
+
+    .post-card {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1.5rem;
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .post-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+        }
+
+    .author-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+    }
+
+    .post-metadata {
+        color: #718096;
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+
+    .visibility-badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 2rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+        .visibility-badge.public {
+            background-color: #C6F6D5;
+            color: #22543D;
+        }
+
+        .visibility-badge.private {
+            background-color: #E9ECEF;
+            color: #495057;
+        }
+
+    .post-time {
+        color: #718096;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+
+    .content-text {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #2d3748;
+        margin: 1.5rem 0;
+        white-space: pre-line;
+    }
+
+    .post-image {
+        border-radius: 0.75rem;
+        overflow: hidden;
+        margin: 1rem 0;
+    }
+
+    .content-image {
+        width: 100%;
+        max-height: 400px;
+        object-fit: cover;
+    }
+
+    .post-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn-action {
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+    }
+
+    /* Loading State */
+    .loading-container {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .loading-text {
+        color: #718096;
+        margin-top: 1rem;
+        font-size: 1.1rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: #f8fafc;
+        border-radius: 1rem;
+        border: 2px dashed #e2e8f0;
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        color: #a0aec0;
+        margin-bottom: 1rem;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+        padding: 1rem;
+    }
+
+    .modal-dialog {
+        width: 100%;
+        max-width: 600px;
+        margin: 0;
+    }
+
+    .modal-content {
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1.5rem;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .modal-body {
+        padding: 2rem;
+    }
+
+    .modal-label {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 0.75rem;
+        display: block;
+    }
+
+    .content-textarea {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        font-size: 1.1rem;
+        resize: vertical;
+        min-height: 120px;
+    }
+
+        .content-textarea:focus {
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+        }
+
+    .character-count {
+        color: #718096;
+        margin-top: 0.5rem;
+        display: block;
+    }
+
+    .image-preview {
+        position: relative;
+        display: inline-block;
+        margin-top: 1rem;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        max-width: 300px;
+    }
+
+        .image-preview img {
+            max-width: 100%;
+            height: auto;
+        }
+
+    .remove-image-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background: #e53e3e;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .remove-image-btn:hover {
+            background: #c53030;
+            transform: scale(1.1);
+        }
+
+    .privacy-toggle {
+        background: #f7fafc;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid #e2e8f0;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #e2e8f0;
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+    }
+
+    .post-card {
+        margin-bottom: 1rem;
+    }
+
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    }
+</style>
+
+@code {
+    private List<PostListDTO> posts = new();
+    private bool isLoading = true;
+    private bool isDeletingPost = false;
+    private HttpClient? postClient;
+    private string? currentUserId;
+    private bool isUploadingImage;
+    private bool isEditModalOpen;
+    private PostEditModel editingPost = new();
+    private string searchTerm = string.Empty;
+    private string privacyFilter = "all";
+    private string sortOption = "newest";
+    private const string SETTINGS_KEY = "socialMediaSettings";
+    private UserSettings? userSettings;
+
+    protected override void OnInitialized()
+    {
+        postClient = HttpClientFactory.CreateClient("PostService");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+            await LoadSettings();
+            currentUserId = await GetCurrentUserIdFromToken();
+            await LoadPostsAsync();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadSettings()
+    {
+        try
+        {
+            var settingsJson = await JS.InvokeAsync<string>("localStorage.getItem", SETTINGS_KEY);
+            if (!string.IsNullOrEmpty(settingsJson))
+            {
+                userSettings = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(settingsJson);
+                if (userSettings != null)
+                {
+                    // Apply settings
+                    sortOption = userSettings.DefaultSortOption;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading settings: {ex}");
+        }
+    }
+
+    private async Task<string?> GetCurrentUserIdFromToken()
+    {
+        try
+        {
+            var token = await AuthService.GetTokenAsync();
+            if (string.IsNullOrEmpty(token))
+            {
+                return null;
+            }
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+            return jwtToken.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetCurrentUserIdFromToken: {ex.Message}");
+            return null;
+        }
+    }
+
+    private IEnumerable<PostListDTO> FilteredAndSortedPosts
+    {
+        get
+        {
+            var filtered = posts.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                filtered = filtered.Where(p =>
+                    p.Content.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    p.FirstName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    p.LastName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+            }
+
+            filtered = privacyFilter switch
+            {
+                "public" => filtered.Where(p => p.IsPublic),
+                "private" => filtered.Where(p => !p.IsPublic),
+                _ => filtered
+            };
+
+            filtered = sortOption switch
+            {
+                "oldest" => filtered.OrderBy(p => p.CreatedAt),
+                _ => filtered.OrderByDescending(p => p.CreatedAt)
+            };
+
+            return filtered;
+        }
+    }
+
+    private async Task EnsureAuthorization()
+    {
+        var token = await AuthService.GetTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            postClient!.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadPostsAsync()
+    {
+        try
+        {
+            await EnsureAuthorization();
+            var response = await postClient!.GetAsync("api/post");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var loadedPosts = await response.Content.ReadFromJsonAsync<List<PostListDTO>>();
+                if (loadedPosts != null)
+                {
+                    posts = loadedPosts;
+                    StateHasChanged();
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Failed to load posts: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Failed to load posts. Please try again later.");
+            Console.Error.WriteLine($"Error fetching posts: {ex}");
+        }
+    }
+
+    private async Task DeletePostWithConfirmation(int postId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", new[] { "Are you sure you want to delete this post?" });
+        if (confirmed)
+        {
+            await DeletePost(postId);
+        }
+    }
+
+    private async Task DeletePost(int postId)
+    {
+        if (isDeletingPost) return;
+
+        try
+        {
+            isDeletingPost = true;
+            await EnsureAuthorization();
+            var response = await postClient!.DeleteAsync($"api/post/{postId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                posts.RemoveAll(p => p.Id == postId);
+                StateHasChanged();
+                ToastService.ShowSuccess("Post deleted successfully!");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Failed to delete post: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Failed to delete post. Please try again.");
+            Console.Error.WriteLine($"Error deleting post: {ex}");
+        }
+        finally
+        {
+            isDeletingPost = false;
+        }
+    }
+
+    private void EditPost(PostListDTO post)
+    {
+        editingPost = new PostEditModel
+            {
+                Id = post.Id,
+                Content = post.Content?.Trim(),
+                ImageUrl = post.ImageUrl,
+                IsPublic = post.IsPublic
+            };
+        isEditModalOpen = true;
+    }
+
+    private async Task HandleEditImageUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            isUploadingImage = true;
+            var imageFile = e.File;
+            var resizedImage = await ResizeImage(imageFile, 800);
+            var imageContent = new MultipartFormDataContent();
+            imageContent.Add(new ByteArrayContent(resizedImage), "file", imageFile.Name);
+
+            await EnsureAuthorization();
+            var response = await postClient!.PostAsync("api/post/upload", imageContent);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var uploadResult = await response.Content.ReadFromJsonAsync<UploadResult>();
+                if (uploadResult != null)
+                {
+                    editingPost.ImageUrl = uploadResult.Url;
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Failed to upload image: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Failed to upload image.");
+            Console.Error.WriteLine($"Error uploading image: {ex}");
+        }
+        finally
+        {
+            isUploadingImage = false;
+        }
+    }
+
+    private async Task<byte[]> ResizeImage(IBrowserFile file, int maxWidth)
+    {
+        using var imageStream = file.OpenReadStream(maxAllowedSize: 10485760);
+        using var memoryStream = new MemoryStream();
+        await imageStream.CopyToAsync(memoryStream);
+        return memoryStream.ToArray();
+    }
+
+    private void RemoveEditImage()
+    {
+        editingPost.ImageUrl = null;
+    }
+
+    private void CloseEditModal()
+    {
+        isEditModalOpen = false;
+        editingPost = new PostEditModel();
+    }
+
+    private async Task SaveEditedPost()
+    {
+        try
+        {
+            await EnsureAuthorization();
+            var updatePostDto = new UpdatePostDTO
+                {
+                    Id = editingPost.Id,
+                    Content = editingPost.Content,
+                    ImageUrl = editingPost.ImageUrl,
+                    IsPublic = editingPost.IsPublic
+                };
+
+            var response = await postClient!.PutAsJsonAsync($"api/post/{editingPost.Id}", updatePostDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadPostsAsync();
+                CloseEditModal();
+                ToastService.ShowSuccess("Post updated successfully!");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ToastService.ShowError($"Failed to update post: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Failed to update post. Please try again.");
+            Console.Error.WriteLine($"Error updating post: {ex}");
+        }
+    }
+
+    private string FormatTimestamp(DateTime timestamp)
+    {
+        var timeDiff = DateTime.UtcNow - timestamp;
+
+        if (timeDiff.TotalMinutes < 1)
+            return "Just now";
+        if (timeDiff.TotalMinutes < 60)
+            return $"{(int)timeDiff.TotalMinutes}m ago";
+        if (timeDiff.TotalHours < 24)
+            return $"{(int)timeDiff.TotalHours}h ago";
+        if (timeDiff.TotalDays < 7)
+            return $"{(int)timeDiff.TotalDays}d ago";
+
+        return timestamp.ToString("MMM dd, yyyy");
+    }
+
+    private string GetFullImageUrl(string? imageUrl)
+    {
+        if (string.IsNullOrEmpty(imageUrl))
+            return string.Empty;
+
+        var baseUrl = postClient?.BaseAddress?.ToString()?.TrimEnd('/');
+        return $"{baseUrl}{imageUrl}";
+    }
+
+    private void HandleImageError(ErrorEventArgs e)
+    {
+        Console.Error.WriteLine("Failed to load image");
+    }
+
+    private void NavigateToCreate()
+    {
+        NavigationManager.NavigateTo("/create-post");
+    }
+
+    private class PostEditModel
+    {
+        public int Id { get; set; }
+        public string Content { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
+        public bool IsPublic { get; set; }
+    }
+
+    private class UserSettings
+    {
+        public bool DefaultPostsPublic { get; set; }
+        public string DefaultSortOption { get; set; } = "newest";
+        public bool ShowDailyJokes { get; set; }
+    }
+}

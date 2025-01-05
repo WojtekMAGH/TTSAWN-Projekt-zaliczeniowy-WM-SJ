@@ -1,0 +1,459 @@
+﻿@page "/faq"
+@inject IJSRuntime JS
+
+<PageTitle>FAQ - TwitLink</PageTitle>
+
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <div class="text-center mb-12 p-8 bg-gradient-to-r from-gray-50 via-white to-gray-50 rounded-2xl shadow-sm">
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">Frequently Asked Questions</h1>
+        <p class="text-xl text-gray-600">Find answers to commonly asked questions about TwitLink</p>
+    </div>
+
+    <div class="space-y-10">
+        @foreach (var group in faqData)
+        {
+            <div class="mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6 pb-2 border-b-2 border-gray-100">
+                    @group.Category
+                </h2>
+                <div class="space-y-4">
+                    @foreach (var item in group.Items)
+                    {
+                        <div class="bg-white rounded-xl shadow-sm hover:shadow transition-all duration-200 hover:-translate-y-1">
+                            <button @onclick="() => ToggleItem(item.Id)"
+                                    class="w-full text-left px-6 py-4 flex justify-between items-center">
+                                <span class="font-semibold text-gray-700">@item.Question</span>
+                                <i class="fas fa-chevron-down transform transition-transform duration-200 @(expandedItem == item.Id ? "rotate-180" : "")"></i>
+                            </button>
+                            @if (expandedItem == item.Id)
+                            {
+                                <div class="px-6 pb-4 text-gray-600 animate-fadeIn">
+                                    @if (item.HasOrderedList)
+                                    {
+                                        <p>@item.Answer</p>
+                                        <ol class="list-decimal ml-5 mt-2 space-y-2">
+                                            @foreach (var step in item.Steps)
+                                            {
+                                                <li>@step</li>
+                                            }
+                                        </ol>
+                                    }
+                                    else
+                                    {
+                                        <p>@item.Answer</p>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .max-w-3xl {
+        max-width: 48rem;
+    }
+
+    .mx-auto {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .px-4 {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .py-8 {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .mb-12 {
+        margin-bottom: 3rem;
+    }
+
+    .mb-8 {
+        margin-bottom: 2rem;
+    }
+
+    .mb-4 {
+        margin-bottom: 1rem;
+    }
+
+    .p-8 {
+        padding: 2rem;
+    }
+
+    .bg-gradient-to-r {
+        background: linear-gradient(to right, #f8f9fa, white, #f8f9fa);
+    }
+
+    .rounded-2xl {
+        border-radius: 1rem;
+    }
+
+    .shadow-sm {
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .text-4xl {
+        font-size: 2.25rem;
+        line-height: 2.5rem;
+    }
+
+    .font-bold {
+        font-weight: 700;
+    }
+
+    .text-gray-800 {
+        color: #1a202c;
+    }
+
+    .text-xl {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+    }
+
+    .text-gray-600 {
+        color: #4a5568;
+    }
+
+    .space-y-10 > * + * {
+        margin-top: 2.5rem;
+    }
+
+    .space-y-4 > * + * {
+        margin-top: 1rem;
+    }
+
+    .text-2xl {
+        font-size: 1.5rem;
+        line-height: 2rem;
+    }
+
+    .font-semibold {
+        font-weight: 600;
+    }
+
+    .pb-2 {
+        padding-bottom: 0.5rem;
+    }
+
+    .border-b-2 {
+        border-bottom-width: 2px;
+    }
+
+    .border-gray-100 {
+        border-color: #f7fafc;
+    }
+
+    .bg-white {
+        background-color: white;
+    }
+
+    .rounded-xl {
+        border-radius: 0.75rem;
+    }
+
+    .hover\:shadow:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .transition-all {
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 200ms;
+    }
+
+    .hover\:-translate-y-1:hover {
+        transform: translateY(-0.25rem);
+    }
+
+    .w-full {
+        width: 100%;
+    }
+
+    .text-left {
+        text-align: left;
+    }
+
+    .px-6 {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+
+    .py-4 {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .flex {
+        display: flex;
+    }
+
+    .justify-between {
+        justify-content: space-between;
+    }
+
+    .items-center {
+        align-items: center;
+    }
+
+    .text-gray-700 {
+        color: #374151;
+    }
+
+    .pb-4 {
+        padding-bottom: 1rem;
+    }
+
+    .transform {
+        transform: translateZ(0);
+    }
+
+    .transition-transform {
+        transition-property: transform;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 200ms;
+    }
+
+    .rotate-180 {
+        transform: rotate(180deg);
+    }
+
+    .animate-fadeIn {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    /* FAQ specific styles */
+    button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        outline: none;
+    }
+
+        button:focus {
+            outline: none;
+        }
+
+    .list-decimal {
+        list-style-type: decimal;
+        padding-left: 1.25rem;
+    }
+
+    .ml-5 {
+        margin-left: 1.25rem;
+    }
+
+    .mt-2 {
+        margin-top: 0.5rem;
+    }
+
+    .space-y-2 > * + * {
+        margin-top: 0.5rem;
+    }
+
+    /* FAQ Item Hover Effects */
+    .faq-item {
+        transition: all 0.2s ease;
+    }
+
+        .faq-item:hover {
+            background-color: #f8f9fa;
+        }
+
+    /* FAQ Question Button */
+    button.w-full {
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    /* Add smooth transition for chevron rotation */
+    .fas.fa-chevron-down {
+        transition: transform 0.2s ease;
+    }
+
+    /* FAQ section container styles */
+    .faq-container {
+        background-color: #f8fafc;
+        min-height: 100vh;
+        padding: 2rem 1rem;
+    }
+
+    /* FAQ header gradient background */
+    .faq-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 50%, #f8f9fa 100%);
+        border-radius: 1rem;
+        padding: 2rem;
+        margin-bottom: 3rem;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    /* FAQ question hover state */
+    .faq-question:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    /* FAQ answer animation */
+    .faq-answer {
+        max-height: 1000px;
+        transition: max-height 0.3s ease-in-out;
+    }
+
+    /* Enhanced list styling */
+    ol li {
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+    }
+</style>
+
+@code {
+    private int expandedItem = 0;
+
+    private class FaqItem
+    {
+        public int Id { get; set; }
+        public string Question { get; set; }
+        public string Answer { get; set; }
+        public bool HasOrderedList { get; set; }
+        public List<string> Steps { get; set; }
+    }
+
+    private class FaqGroup
+    {
+        public string Category { get; set; }
+        public List<FaqItem> Items { get; set; }
+    }
+
+    private List<FaqGroup> faqData = new List<FaqGroup>
+    {
+        new FaqGroup
+        {
+            Category = "Getting Started",
+            Items = new List<FaqItem>
+            {
+                new FaqItem
+                {
+                    Id = 1,
+                    Question = "What is TwitLink?",
+                    Answer = "TwitLink is a social media platform that allows you to share moments, thoughts, and images with your community. You can create both public and private posts, interact with other users, and enjoy a seamless experience with our app. We value your feedback, so don’t hesitate to share your thoughts! 😊",
+                    HasOrderedList = false
+                },
+                new FaqItem
+                {
+                    Id = 2,
+                    Question = "How do I create an account?",
+                    Answer = "Creating an account is easy:",
+                    HasOrderedList = true,
+                    Steps = new List<string>
+                    {
+                        "Click the \"Sign up\" button in the top right corner",
+                        "Enter your first name, last name, and email",
+                        "Choose a secure password",
+                        "Click \"Register\" to create your account"
+                    }
+                }
+            }
+        },
+        new FaqGroup
+        {
+            Category = "Posts",
+            Items = new List<FaqItem>
+            {
+                new FaqItem
+                {
+                    Id = 3,
+                    Question = "What's the difference between public and private posts?",
+                    Answer = "Public posts are visible to all TwitLink users, while private posts are only visible to you. You can choose the privacy setting when creating or editing a post using the privacy toggle switch.",
+                    HasOrderedList = false
+                }
+            }
+        },
+     new FaqGroup
+    {
+        Category = "Profile Management",
+        Items = new List<FaqItem>
+        {
+            new FaqItem
+            {
+                Id = 4,
+                Question = "How do I update my profile information?",
+                Answer = "You can easily update your profile information by following these steps:",
+                HasOrderedList = true,
+                Steps = new List<string>
+                {
+                    "Click on your profile name in the top right corner and select 'Profile'",
+                    "Click the 'Edit Profile' button",
+                    "Update your first name, last name, or email as needed",
+                    "Click 'Save Changes' to confirm your updates"
+                }
+            },
+            new FaqItem
+            {
+                Id = 5,
+                Question = "How do I change my password?",
+                Answer = "To change your password:",
+                HasOrderedList = true,
+                Steps = new List<string>
+                {
+                    "Go to your Profile page",
+                    "Click the 'Edit Profile' button",
+                    "Find the 'New Password' field",
+                    "Enter your new password (must include uppercase, lowercase, and numbers)",
+                    "Click 'Save Changes' to update your password"
+                }
+            }
+        }
+    },
+    new FaqGroup
+    {
+        Category = "Customization and Settings",
+        Items = new List<FaqItem>
+        {
+            new FaqItem
+            {
+                Id = 6,
+                Question = "What settings can I customize?",
+                Answer = "TwitLink offers several customization options in the Settings page:",
+                HasOrderedList = true,
+                Steps = new List<string>
+                {
+                    "Post Privacy: Set whether your new posts are public or private by default",
+                    "Post Sorting: Choose how posts are ordered in your feed (newest or oldest first)",
+                    "Daily Jokes: Toggle the display of daily jokes on your homepage",
+                    "All settings can be reset to defaults at any time"
+                }
+            }
+        }
+    },
+    new FaqGroup
+    {
+        Category = "Privacy and Security",
+        Items = new List<FaqItem>
+        {
+            new FaqItem
+            {
+                Id = 8,
+                Question = "How secure is my information?",
+                Answer = "We take your privacy and security seriously. Your password is securely hashed, and all sensitive data is protected. We recommend using a strong, unique password and keeping your login credentials private.",
+                HasOrderedList = false
+            }
+        }
+    }
+};
+
+    private void ToggleItem(int itemId)
+    {
+        expandedItem = expandedItem == itemId ? 0 : itemId;
+    }
+}
